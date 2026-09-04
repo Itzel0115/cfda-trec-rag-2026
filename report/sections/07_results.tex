@@ -1,0 +1,106 @@
+\subsection{Retrieval Results}
+
+Table~\ref{tab:retrieval-results} reports the stage-wise Retrieval
+evidence. The pool columns are not interchangeable with the submitted
+variable-depth measure. Table~\ref{tab:retrieval-cutoff} isolates the
+cutoff change from the later deep-tail reranking.
+
+\input{tables/retrieval_results}
+\input{tables/retrieval_cutoff}
+
+The Retrieval output obtains P@10=0.9076 while submitting fewer than
+1,000 documents for 20 of the 22 narratives. Its mean
+depth is 601.45, median depth 687.5, and the 18 distinct depths show
+that the output is not padded. The fixed-depth comparison is
+Recall@1000=0.3159; it is not substituted for Recall@submitted-$k$.
+
+The nDCG@10 increase from 0.7414 to 0.7456 is caused by the cutoff
+change rather than by deep-tail reranking. It arises because the
+historical CE-threshold cutoff returned only four documents for topic 515, whereas
+the relative cutoff exposes ranks 5--10 from the same pre-deep ranking.
+That historical cutoff uses sigmoid-transformed cross-encoder logits
+stored in the top-100 fusion artifact. It emits four documents when no
+artifact entry reaches 0.50 (the archived \texttt{ce\_dead} flag);
+otherwise it counts entries with sigmoid score at least 0.50 (the
+archived \texttt{ce\_calibrated} field), clips that count to
+$[4,5{,}000]$, and takes the corresponding candidate-pool prefix. Its observed
+development depths are 4--94. The variable-$k$ scores are computed from
+the post-splice, pre-deep-CE candidate-pool scores; Deep CE changes ordering but not the
+topic-specific submission depth.
+
+The selected pre-Deep-CE pool has pool Recall@1000=0.2937,
+pool Recall@5000=0.4895, and Recall@submitted-$k$=0.2204. Deep-tail
+reranking preserves that pool while changing the corresponding values
+to 0.3159, 0.4895, and 0.2343, respectively.
+In this same-pool comparison, deep-tail reranking improves pool
+Recall@1000 without changing pool membership.
+
+\subsection{RAG Results}
+
+The RAG analysis compares stored dense-writing configurations under
+different evidence-acquisition and writing settings.
+Table~\ref{tab:rag-results} reports the
+selected development diagnostics for the three stored RAG configurations
+without the internal PS diagnostic; the unreported remainder of FS and
+NS is PS.
+
+\input{tables/rag_results}
+\input{figures/development_results_summary}
+
+The 12-document-cap baseline reads five initial documents and up to four
+unseen documents per acquisition iteration, with a 12-document cap and
+at most three acquisition iterations. Both 60-document configurations
+record 12 initial documents, up to ten unseen documents per acquisition
+iteration, a 60-document acquisition cap, and at most six acquisition
+iterations, plus reranking, passage selection, a supplied checklist, and
+verify/revise. The archived deep-reading launcher
+sets a 40-document writer limit; the selected development record preserves
+neither writer-document nor character limits. Official limits appear in
+Appendix~\ref{app:parameters}. The rows are therefore
+stored system variants, not a controlled writer-visible-evidence
+ablation.
+
+The selected RAG output contains 22 valid and completed topics. Each
+topic has 12--30 references, and each answer contains 44--71 answer
+objects. The mean answer length is 976.73 words and the maximum is
+1,019 words. Table~\ref{tab:output-stats} in
+Appendix~\ref{app:structural-stats} reports the corresponding structural
+statistics for both systems side by side.
+
+Figure~\ref{fig:development-summary} places the two main comparisons on
+their relevant scales. With the 5,000-document Retrieval pool fixed,
+deep-tail ordering raises pool Recall@1000 by 0.0222 and
+Recall@submitted-$k$ by 0.0139. Figure~\ref{fig:development-summary}
+also summarizes the RAG coverage--support trade-off.
+
+\subsection{Answers to the Research Questions}
+
+\textbf{RQ1.}
+The selected multi-route pool reaches pool Recall@1000 of 0.2937,
+compared with 0.2635 for original-narrative BM25. The original narrative
+remains an explicit retrieval route, while the protected splice retains
+the top 200 entries of the multi-route, head-reranked pre-facet
+ranking before facet-derived candidates are added to the complementary
+tail. Deep-tail ordering further raises the same-pool Recall@1000 to 0.3159.
+
+\textbf{RQ2.}
+Variable-depth Retrieval produces topic-specific submission depths of
+100--1,000 documents, with a mean depth of 601.45 and
+Recall@submitted-$k$ of 0.2343; 20 of 22 development topics end below
+1,000 documents. The selected RAG configuration bounds evidence
+acquisition at 60 documents and at most six evidence-acquisition
+iterations and obtains an all-nugget score of 0.5298. The stored RAG
+configurations show an observed coverage--support trade-off. We do not
+claim a compute-efficiency advantage for variable-depth Retrieval because
+runtime cost was not evaluated under a controlled comparison.
+
+\textbf{RQ3.}
+The 60-document deep-reading configuration has higher all-nugget
+coverage (0.5485 versus 0.5298), whereas the selected bounded
+60-document acquisition configuration has higher Full Support (97.0\%
+versus 95.0\%). This comparison shows the
+coverage--citation-support trade-off observed across the two
+configurations, not a Pareto improvement. Because the writer, verifier,
+and evidence budgets were not isolated in a single-factor ablation, the
+stronger citation support is a property of the selected stored
+configuration rather than an identified causal effect of verification.

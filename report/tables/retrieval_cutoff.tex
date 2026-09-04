@@ -1,0 +1,22 @@
+\begin{table*}[tb]
+\centering
+\caption{Variable-depth cutoff comparison on the 22-topic development
+set; all values are development diagnostics, not official test-set
+results. nDCG uses linear gains after grades below 2 are mapped to zero;
+Recall is always Recall@submitted-$k$
+in this table. Boldface marks a column maximum, not statistical
+significance.}
+\label{tab:retrieval-cutoff}
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}l l r r r r r@{}}
+\toprule
+Cutoff stage & Submitted depth & nDCG@10 & Recall@submitted-$k$ & MAP & P@10 & MRR \\
+\midrule
+Historical CE-threshold cutoff & 4--94 & 0.7414 & 0.0563 & 0.0514 & 0.8985 & 0.9848 \\
+Relative $\tau=0.20$ & 100--1,000 & 0.7456 & 0.2204 & 0.1389 & 0.9076 & 0.9848 \\
+Deep-tail reranking (same depth) & 100--1,000 & 0.7456 & \textbf{0.2343} & \textbf{0.1432} & 0.9076 & 0.9848 \\
+\bottomrule
+\end{tabular}
+\end{table*}

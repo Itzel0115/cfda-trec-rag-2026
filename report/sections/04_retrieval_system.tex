@@ -1,0 +1,121 @@
+\section{Method}
+
+\subsection{Multi-Route Variable-Depth Retrieval}
+\label{sec:retrieval-method}
+
+Figure~\ref{fig:retrieval} shows our Multi-Route Variable-Depth
+Retrieval with Deep-Tail Reranking system. The original narrative
+remains the primary retrieval signal, with separate budgets for
+expansion, reranking, and serialization. Candidate membership,
+ordering, and submitted depth are computed in separate stages.
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.95\textwidth}{!}{\input{figures/retrieval_pipeline.tex}}
+\caption{Multi-Route Variable-Depth Retrieval with Deep-Tail Reranking.
+The diagram depicts the development configuration and separates
+multi-route acquisition, head reranking, facet-based expansion,
+deep-tail ordering, and variable-depth serialization. For the official
+119-topic run, the deep-tail span was 101--3,000 and the serialization
+cap was $K=5{,}000$, as specified in the text.}
+\label{fig:retrieval}
+\end{figure*}
+
+The system begins with the original narrative. A Query2Doc route
+generates one pseudo-document and appends it to an anchor-boosted query
+formed by repeating the original narrative five times, expanding the
+query without discarding the anchor
+\citep{wang2023query2doc}. The original-narrative and successful
+Query2Doc BM25 rankings are fused first (weight 1.0 each; RRF $k=60$),
+and the loop reads the first five successfully fetched documents. Only
+an insufficient judgment elicits follow-up queries. Each accepted query
+retrieves BM25 to depth 5,000 as a new route of weight 0.25; fusion is
+recomputed and up to four unseen documents are read. The loop stops on
+sufficiency, at 12 documents, or after three acquisition iterations;
+the fused pool contains up to 5,000 documents.
+
+Retained Query2Doc traces use one temperature-zero call, a 400-token
+limit, and a 180-word pseudo-document cap. A failed or degenerate call
+omits that route; retrieval continues with the original narrative. Run configurations
+select \texttt{gpt-5.6-sol} for Query2Doc and facets. The
+\texttt{gpt-oss-120b} sufficiency judge instead proposes follow-ups,
+with up to five attempts per decision. Topic records retain generated
+Query2Doc and facet content, but no immutable provider snapshot or
+per-response model identifier.
+
+For a document $d$, weighted reciprocal rank fusion is
+\begin{equation}
+s_{\mathrm{RRF}}(d) = \sum_{r:\,d\in r} \frac{w_r}{k + \operatorname{rank}_r(d)}.
+\label{eq:wrrf}
+\end{equation}
+Here $k=60$, the original and Query2Doc routes have weight 1.0, and
+each accepted follow-up BM25 route has weight 0.25.
+Equation~\ref{eq:wrrf} applies to
+the Retrieval route-fusion stage; the separate top-300 RAG reranker is
+defined in \S\ref{sec:rag-method}.
+
+The fused candidate pool is built to depth 5,000. The top-100 head is
+then reranked using BM25-rank, MiniLM cross-encoder-rank
+\citep{wang2020minilm}, and BGE-M3 dense-embedding-rank \citep{chen2024bgem3} signals with
+equal RRF weights and $k=60$. The top portion of the pre-facet ranking
+is protected while facet-based retrieval constructs the complementary
+tail. Up to 20 schema-validated, searchable facets tied to exact
+narrative spans each yield one initial query and up to one reformulation
+that does not use retrieved evidence. After normalized deduplication, each of at most
+40 queries retrieves BM25 to depth 1,000. Equal-weight RRF ($k=60$)
+accumulates repeated document IDs into a unique pool of up to 5,000.
+The exact pre-facet top-200 remains unchanged; after its IDs are removed,
+facet candidates are sorted by descending RRF score, ascending best
+contributing rank, and then lexicographic document ID. They fill the tail, followed when
+needed by unused pre-facet tail documents in original order. Failed routes are omitted; if
+generation or every retrieval fails, the pre-facet ranking is used.
+
+\paragraph{Deep cross-encoder tail reranking.}
+
+The selected deep-tail stage applies
+\url{cross-encoder/ms-marco-MiniLM-L6-v2} below the first 100
+entries, which are preserved unchanged. It fuses cross-encoder and
+candidate-pool tail ranks with equal RRF weights and $k=60$. The
+reranked span is ranks 101--5,000 in development; in the official
+119-topic run it is ranks 101--3,000, after which ranks 3,001--5,000
+retain candidate-pool order. This stage does not add or remove
+candidates, but it can change their tail order and which documents fall
+inside a serialized prefix.
+
+\paragraph{Variable-depth serialization.}
+
+The topic-specific submission depth is derived from the post-splice,
+pre-deep-CE candidate-pool score: the implementation specifies a relative threshold of
+0.20, a minimum depth of 4, and a maximum depth $K$ that differs
+between settings: $K=1{,}000$ for the development runs and $K=5{,}000$
+for both official 119-topic submissions. The lower clip is never
+active in either setting; the smallest depth selected by the threshold
+is 100 on the development set and 137 on the official topics. Any such
+cap is a team-imposed limit, as the Retrieval task specification sets
+no fixed maximum submission depth. The deep-CE
+stage changes ordering but does not change topic depth. The output is
+serialized as a six-column TREC run. For topic $q$, the corresponding
+serialization rule is
+\begin{equation}
+\begin{aligned}
+k_q &= \operatorname{clip}\bigl(
+\lvert\{d : s_q(d) \geq \tau\, s_q(d_q^{(1)})\}\rvert,\\[-2pt]
+&\hspace{25mm}4, K\bigr),
+\end{aligned}
+\label{eq:vark}
+\end{equation}
+where $s_q(d)$ is the post-splice, pre-deep-CE candidate-pool score,
+$d_q^{(1)}$ is the document at rank 1 of topic $q$, $\tau=0.20$, and
+$K$ is the maximum-depth cap defined above.
+The threshold determines the topic-specific submission depth $k_q$;
+after deep-tail reranking, the system submits the top-$k_q$ prefix of
+the final ranking.
+The anchor is the rank-1 score rather than the pool maximum. Because
+the spliced ranking can contain entries whose scores originate from
+different fusion computations, $s_q$ is not necessarily monotone in
+rank, and the maximum-scoring document can occur below the protected
+splice boundary. Using the
+maximum instead of rank 1 changes $k_q$ for 88 of the 119 official
+topics. The cutoff is computed before deep-tail reranking. The deep
+stage leaves $k_q$ unchanged but can alter both the order and
+membership of the submitted prefix.

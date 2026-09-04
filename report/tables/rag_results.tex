@@ -1,0 +1,19 @@
+\begin{table}[tb]
+\centering
+\caption{Selected RAG development diagnostics for three stored RAG
+configurations. These are system variants, not a single-factor
+ablation. Boldface marks a column maximum, not statistical significance.}
+\label{tab:rag-results}
+\small
+\setlength{\tabcolsep}{2.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{2.65cm}rrrr@{}}
+\toprule
+Configuration & $V_{\mathrm{strict}}$ & $A$ & FS & NS \\
+\midrule
+12-document-cap baseline & 0.4145 & 0.4862 & 94.8\% & 0.1\% \\
+60-document deep-reading & \textbf{0.4698} & \textbf{0.5485} & 95.0\% & 0.1\% \\
+Bounded 60-document acquisition (selected) & 0.4656 & 0.5298 & \textbf{97.0\%} & 0.1\% \\
+\bottomrule
+\end{tabular}
+\end{table}

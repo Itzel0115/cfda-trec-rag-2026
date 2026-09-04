@@ -1,0 +1,14 @@
+\section{Introduction}
+
+Long-form narratives pose a different retrieval problem from short keyword queries. A single narrative may ask about several entities, mechanisms, historical periods, and comparisons. A lexical retriever can miss a facet whose vocabulary is absent from the original wording, while unconstrained query expansion can introduce unsupported terms and semantic drift. We therefore keep the original narrative as an anchor and retrieve complementary formulations through separate routes.
+
+Generation introduces a related trade-off. A small evidence set may support fluent writing but omit requested facets. Reading more documents can improve coverage, but it also increases context, model calls, and the chance of unsupported claims or weak citations. Citation verification and nugget coverage measure different properties: a well-supported sentence may omit a requested aspect, while a broad answer may contain citations that do not support every claim.
+
+We study these trade-offs in the 2026 TREC RAG setting, which defines separate Retrieval and Retrieval-Augmented Generation tasks over the ClimbMix collection \citep{trec_rag_website_2026,trec_rag_2026_guidelines}. We ask three questions. \textbf{RQ1:} How does the selected multi-route retrieval configuration compare with original-narrative BM25 while retaining the original narrative as an anchor? \textbf{RQ2:} What retrieval-depth profile results from variable serialization, and what coverage behavior is observed under bounded evidence acquisition? \textbf{RQ3:} What trade-off emerges between answer coverage and citation support across different stored RAG configurations?
+
+The report describes multi-route, variable-depth Retrieval with a
+protected head and deep-tail reranking; a bounded evidence-acquisition
+loop for citation-aware dense writing; and development-set analyses of
+deep-tail ranking and the coverage--citation-support trade-off across stored
+RAG configurations.
+\devnote

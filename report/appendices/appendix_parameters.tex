@@ -1,0 +1,108 @@
+\section{Parameters}
+\label{app:parameters}
+\captionsetup{hypcap=false,aboveskip=3pt,belowskip=3pt}
+\setlength{\abovecaptionskip}{3pt}
+\setlength{\belowcaptionskip}{3pt}
+\setlength{\floatsep}{6pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{8pt plus 2pt minus 2pt}
+\setlength{\intextsep}{6pt plus 2pt minus 2pt}
+
+\subsection{Retrieval parameters}
+
+The selected Retrieval configuration uses the original-narrative route,
+Query2Doc, separate follow-up queries, weighted RRF, a 5,000-document
+candidate pool, top-100 BM25/cross-encoder/dense reranking,
+facet-derived tail expansion, protected top-200 merge, deep-tail
+reranking, and threshold-derived variable depth.
+
+\begin{center}
+\captionof{table}{Key Retrieval operating parameters and observed output depths.}
+\label{tab:appendix-retrieval-parameters}
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}p{0.43\columnwidth}X@{}}
+\toprule
+Parameter & Value \\
+\midrule
+Original-query repetitions in Query2Doc route & 5 \\
+Initial evidence read & 5 documents \\
+Follow-up queries per acquisition iteration / RRF weight per accepted BM25 route & 1--3 / 0.25 \\
+New evidence per acquisition iteration & Up to 4 unseen documents \\
+Evidence-acquisition cap & 12 documents \\
+Maximum acquisition iterations & 3 \\
+Candidate pool depth & 5,000 \\
+Head rerank depth & 100 \\
+Protected pre-facet prefix & 200 \\
+Deep CE tail (development) & Ranks 101--5,000; CE/pool RRF 1:1, $k=60$ \\
+Deep CE tail (official) & Ranks 101--3,000; ranks 3,001--5,000 retain pool order \\
+Variable-depth threshold & 0.20 \\
+Minimum depth clip & 4 \\
+Development maximum $K$ & 1,000 \\
+Official maximum $K$ & 5,000 \\
+Observed development output depth & 100--1,000 \\
+Observed official output depth & 137--4,218 \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{RAG parameters}
+
+\noindent\begin{minipage}{\columnwidth}
+\centering
+\captionof{table}{RAG evidence-loop and generation parameters. Loop
+parameters apply to the selected bounded 60-document configuration in
+development and official runs; dense-writer limits are from the official
+submission configuration.}
+\label{tab:appendix-rag-parameters}
+\centering
+\small
+\setlength{\tabcolsep}{6pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}p{0.43\columnwidth}X@{}}
+\toprule
+Parameter & Value \\
+\midrule
+Initial BM25 depth & 1,000 \\
+Initial documents read & 12 \\
+New documents per acquisition iteration & Up to 10 unseen documents \\
+Maximum documents read & 60 \\
+Maximum acquisition iterations & 6 \\
+Passages per document & 3 \\
+Document read limit & 200 lines \\
+Top-300 rerank boundary & 300 \\
+Anchor / follow-up RRF weights; $k$ & 1.0 / 0.25 each; 60 \\
+Checklist & Supplied artifact \\
+Verify/revise batch & 20 sentences \\
+Verify/revise mode & Weaken unsupported or over-extended claims \\
+Dense-writer evidence (official) & Up to 60 documents; 1,200 characters each \\
+Dense-writer target (generation instruction) & 900--1,010 words; not a final lower bound \\
+Runtime sufficiency/query model & \texttt{gpt-5.6-sol}, temperature 0 \\
+Dense writer and verify/revise model & \texttt{gpt-5.6-sol}, temperature 0 \\
+Offline checklist generator & \texttt{gpt-oss-120b}, temperature 0 \\
+Development RAGDoll judge & \texttt{gpt-oss-120b} \\
+Implementation trim cap & 1,020 words \\
+Organizer-specified maximum answer length & 1,024 words \\
+\bottomrule
+\end{tabularx}
+\end{minipage}
+\par\vspace{0.6\baselineskip}
+
+The retained source identifiers are
+\texttt{Xenova/ms-marco-MiniLM-L-6-v2} for the top-head cross-encoder,
+\texttt{bge-m3} for the dense endpoint, and
+\url{cross-encoder/ms-marco-MiniLM-L6-v2} for the selected deep-tail
+cross-encoder. The frozen
+run records do not preserve a versioned provider checkpoint for the
+top-head service, so no more specific head checkpoint is asserted here.
+For Retrieval, Query2Doc and facet-query generation use \texttt{gpt-5.6-sol}
+at temperature 0. Query2Doc has one 400-token call and omits its route after
+failure or unusable output; facet templates are schema-validated, with up to
+four attempts. The Retrieval sufficiency/follow-up judge uses
+\texttt{gpt-oss-120b} at temperature 0, with up to five total attempts.
+Table~\ref{tab:appendix-rag-parameters} separately summarizes RAG runtime
+model roles, and its prompts appear in
+Appendix~\ref{app:prompts-traces}. This table is a concise summary;
+stage-specific fusion and per-topic trace details are specified in the
+Method and reproducibility records.

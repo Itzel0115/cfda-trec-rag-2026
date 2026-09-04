@@ -1,0 +1,43 @@
+\section{Additional Development Variants}
+
+The fixed top-1000 comparison illustrates the depth trade-off but is
+not the selected variable-depth Retrieval output. The 12-document-cap
+baseline and the two 60-document configurations are development
+comparisons. The extended-reading configuration is included for failure
+analysis.
+
+\paragraph{Variable-depth metric computation.} The deep-tail
+reranking Recall@submitted-$k$ figure (0.2343, Table~\ref{tab:retrieval-cutoff})
+is computed by applying the variable-depth rule in
+Equation~\ref{eq:vark} to the post-splice, pre-deep-CE candidate-pool
+scores.
+
+\section{Follow-up Query Constraints and Validation}
+\label{app:query-legality}
+
+The validator lowercases and extracts \texttt{[a-z0-9-]+} tokens,
+requiring 4--12. It rejects a normalized duplicate of any prior query
+(including the anchor) or earlier accepted proposal in the iteration;
+any \texttt{?}, brace, period, semicolon, colon, or triple-backtick
+fence; and tokens equal to: obtain, find, source, sources, detail,
+detailed, comprehensive, concrete, examples, evidence, information,
+overview, history, impact, provide, directly, addresses, address,
+account, explain, or the token \emph{and}. It also rejects an anchor-overlap ratio above
+0.75, computed as the number of query-token occurrences whose token
+also appears in the anchor
+divided by the number of distinct tokens in their union. At most the
+first three valid proposals are retained. A parse-invalid judge response
+triggers retries for up to five total attempts; a parsed insufficient response with no
+valid proposal stops the loop with no valid follow-up query.
+
+\section{Structural Statistics}
+\label{app:structural-stats}
+
+\FloatBarrier
+The following table records comparable output statistics; contract
+checks are described in the main text.
+
+\input{tables/output_statistics}
+\FloatBarrier
+
+\input{appendices/appendix_prompts}

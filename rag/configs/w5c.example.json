@@ -1,0 +1,14 @@
+{
+  "description": "Example configuration reconstructed from the final selected W5c policy; not the original competition runtime environment.",
+  "policy": "W5c",
+  "initial_documents": 12,
+  "documents_per_iteration": 10,
+  "maximum_documents_read": 60,
+  "maximum_iterations": 6,
+  "dense_evidence": true,
+  "citation_verification": true,
+  "schema_validation": true,
+  "inputs": {"topics": "<approved-topic-tsv>", "checklists": "<approved-checklist-source>", "qrels_directory": "<approved-development-qrels-directory>"},
+  "services": {"pyserini_api_url": "${PYSERINI_API_URL}", "sidecar_url": "${SIDECAR_URL}", "llm_api_key_env": "OPENAI_API_KEY"},
+  "models": {"runtime_writer": "gpt-5.6-sol", "development_evaluator": "gpt-oss-120b", "dense_encoder": "<approved-dense-encoder>"}
+}

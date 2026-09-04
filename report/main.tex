@@ -1,0 +1,64 @@
+\documentclass[11pt]{article}
+\usepackage[preprint]{acl}
+
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{placeins}
+\usepackage{url}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{float}
+\usepackage{balance}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,fit,backgrounds,calc}
+
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+
+\newcommand{\tbd}[1]{\textcolor{red}{[TBD: #1]}}
+\newcommand{\verify}[1]{\textcolor{orange}{[VERIFY: #1]}}
+
+\title{CFDA at TREC 2026 Retrieval-Augmented Generation Track}
+
+\hypersetup{
+  pdftitle={CFDA at TREC 2026 Retrieval-Augmented Generation Track},
+  pdfauthor={Pei-Ju Hsieh, Shao-Hua Wu, Yi-Chen Hsiao, Jun-kuan Tsao, Hsiang-Wei Chen, Li-Yang Chang, Ming-Feng Tsai, Chuan-Ju Wang}
+}
+
+\author{Pei-Ju Hsieh$^*$,
+        Shao-Hua Wu$^*$, Yi-Chen Hsiao$^*$, Jun-kuan Tsao$^*$, Hsiang-Wei Chen$^*$,
+        Li-Yang Chang$^*$, \\
+        {\bf Ming-Feng Tsai$^\ddagger$} and {\bf Chuan-Ju Wang$^*$} \\
+        $^*$ Research Center for Information Technology Innovation, Academia Sinica, \\
+        $^\ddagger$ Department of Computer Science, National Chengchi University}
+
+\newcommand{\devnote}{\textit{All numerical results in this paper are from the 22-topic development set unless explicitly stated otherwise.}}
+
+\begin{document}
+\maketitle
+\raggedbottom
+
+\input{sections/00_abstract}
+\input{sections/01_introduction}
+\input{sections/02_related_work}
+\input{sections/02_track_setup}
+\input{sections/04_retrieval_system}
+\input{sections/05_rag_system}
+\input{sections/06_experimental_protocol}
+\input{sections/07_results}
+\input{sections/08_ablations_failures}
+\input{sections/09_reproducibility_limitations}
+\input{sections/10_conclusion}
+
+\FloatBarrier
+{\footnotesize
+\bibliography{references}}
+\appendix
+\input{appendices/appendix_parameters}
+\input{appendices/appendix_additional_results}
+\end{document}

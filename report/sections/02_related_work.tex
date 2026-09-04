@@ -1,0 +1,101 @@
+\section{Related Work}
+
+\subsection{Query Expansion and Hybrid Retrieval}
+
+BM25 provides a strong lexical first-stage retriever for matching
+term evidence in long narratives \citep{robertson2009probabilistic}.
+Query expansion can complement this lexical anchor: Query2Doc uses a
+large language model to generate a pseudo-document for expansion
+\citep{wang2023query2doc}, while related work studies prompted query
+expansion and iterative refinement \citep{jagerman2023queryexpansion,chen2024analyze}.
+We use the original narrative and expanded formulations as separate
+routes, so an expanded query does not replace the lexical anchor.
+
+Hybrid retrieval also combines lexical and semantic signals at
+different stages. Dense Passage Retrieval learns a dense first-stage
+representation \citep{karpukhin2020dpr}, late interaction retains
+token-level matching for efficient passage search
+\citep{khattab2020colbert}, and SPLADE makes lexical expansion part of
+the representation \citep{formal2021splade,formal2021spladev2}. Our
+candidate pool likewise combines complementary retrieval signals; we
+evaluate their route-level combination and subsequent serialization
+on the development set.
+
+\subsection{Neural Reranking and Rank Fusion}
+
+Rank fusion is useful when component rankings provide complementary
+evidence. Reciprocal Rank Fusion is a simple robust baseline for
+combining rankings without requiring a common score scale
+\citep{cormack2009rrf}. Our Retrieval system applies weighted rank
+fusion at route-combination stages and again when combining the
+BM25, cross-encoder, and dense-ranking head signals. A cross-encoder tail
+rank is then fused with candidate-pool order only over the specified
+tail, leaving the head and the variable-depth cutoff stages separable.
+BEIR shows that zero-shot behavior varies substantially
+across heterogeneous domains and that some neural rerankers can trail
+BM25 on particular out-of-domain collections \citep{thakur2021beir}.
+This is not a universal weakness of cross-encoders: scaling studies
+find that sufficiently large cross-encoders can generalize strongly
+and outperform comparable bi-encoders \citep{rosa2022crossencoders}.
+Our protected-head choice is based on development-set observations for
+ClimbMix, not on a general claim that cross-encoders degrade out of
+domain.
+
+Choosing how deep to read a ranked list is itself an open problem
+separate from how the list is ordered. Early work optimizes a
+per-query cutoff from the shape of the query's own score distribution
+\citep{arampatzis2009stopreading}; more recent work selects a
+long-context QA read depth from the steepest drop in a sorted
+similarity-score distribution, without additional tuning or iterative
+model calls \citep{taguchi2025adaptivek}. Our variable-depth
+serialization (\S\ref{sec:retrieval-method}) is a relative-threshold
+instance of this same family, applied to the score used immediately
+before deep-tail reranking rather than to a single-query similarity
+distribution.
+
+\subsection{Evidence-Grounded and Agentic RAG}
+
+Retrieval-augmented generation couples evidence selection with answer
+generation \citep{lewis2020rag}. REALM and Atlas demonstrate how
+retrieval can be integrated with language-model reasoning and few-shot
+adaptation \citep{guu2020realm,izacard2023atlas}; WebGPT similarly
+studies browser-assisted question answering with feedback
+\citep{nakano2021webgpt}. Our RAG system also acquires evidence before
+generation, but it limits additional reading and handles citation
+ordering in a separate finalization step.
+Self-RAG addresses when to retrieve by training a single model to emit
+reflection tokens that decide, and critique, retrieval and generation
+end to end \citep{asai2024selfrag}; our sufficiency judge makes the
+analogous retrieve-more-or-stop decision but as an explicit, bounded,
+inference-time policy rather than a trained-in behavior. The resulting
+retrieve-or-stop decision is recorded at inference time. IRCoT
+interleaves retrieval with chain-of-thought steps for multi-step
+questions \citep{trivedi2023ircot}. CRAG instead evaluates retrieved
+evidence and triggers corrective retrieval actions
+\citep{yan2024crag}, while DRAGIN explicitly separates decisions about
+when to retrieve from how to formulate the next query
+\citep{su2024dragin}. Our sufficiency judge combines the
+retrieve-or-stop and follow-up-query decisions. Unlike these systems,
+our implementation keeps a fixed generation policy, deterministic
+query validation, and explicit document and iteration caps.
+
+Evaluation of retrieve/generate systems has increasingly emphasized
+coverage, attribution, and rubric-based assessment. The TREC RAG
+workbench and rubric-oriented evaluation studies provide context for
+our development diagnostics \citep{dietz2024workbench,farzi2024pencils,pradeep2024initialnugget,pradeep2025greatnugget}.
+ALCE evaluates citation-bearing long-form answers along correctness,
+fluency, and citation-quality dimensions, and shows that apparently
+strong generated answers can still lack complete citation support
+\citep{gao2023alce}.
+RAGAS also uses automated judgments \citep{es2024ragas}, while work on
+faithfulness evaluation examines their interpretation
+\citep{jing2025scale}. Separately, citation \emph{correctness} (whether
+a cited passage supports a claim) and citation \emph{faithfulness}
+(whether the citation reflects genuine grounding rather than
+post-hoc rationalization) have been shown to diverge substantially,
+with a large share of formally correct citations found unfaithful
+under adversarial testing \citep{wallat2025correctness}; our
+sentence-level verify/revise stage targets citation correctness. We do
+not separately measure faithfulness as defined in that study. The
+reported internal diagnostics are development observations and are not
+equated with organizer-defined test measures.

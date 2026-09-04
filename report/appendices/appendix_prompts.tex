@@ -1,0 +1,249 @@
+\section{Prompts and Execution Traces}
+\label{app:prompts-traces}
+
+The official 119-topic RAG launcher used three LLM prompt templates in
+the main runtime path: a combined sufficiency-and-query prompt, a dense
+answer writer, and a sentence-level verify/revise pass. Citation
+ordering and final structural validation are deterministic and use no
+additional LLM prompt. The submission metadata
+stores the base version \texttt{agentic\_rag\_baseline\_v1}; the writer
+template identifies itself more specifically with the \texttt{-dense}
+suffix. The templates below are transcribed from the runtime
+implementation. Only typesetting has been normalized; runtime-injected
+content is omitted.
+
+The template text is reproduced verbatim; some heuristic instructions
+and examples are not guaranteed to satisfy every stated constraint
+simultaneously.
+
+The combined sufficiency/query template is embedded in
+the iteration runner, while the writer and verifier are shared
+prompt-module templates. The offline checklist consumed by the sufficiency judge
+(\S\ref{sec:rag-method}) is produced separately, once per topic, by a
+single system/user decomposition call (retried on parse failure,
+temperature 0). Stable source mappings, file hashes, and replay locations
+are recorded in the project reproducibility record rather than exposed
+as machine-specific paths in the paper.
+
+\paragraph{Offline checklist generation (system and user prompt).} This
+prompt runs once per topic, before the agentic loop, to decompose the
+narrative into the sub-aspects the checklist enumerates. Its
+sub-narrative decomposition produces the format consumed by the
+sufficiency judge and dense writer. It does not use
+organizer-provided nugget annotations or relevance judgments.
+
+\begingroup
+\footnotesize\ttfamily\raggedright
+\textit{System:} You decompose a research narrative into the distinct
+sub-aspects a complete answer must cover. You return strict JSON only -
+no prose, no markdown fences.\\[4pt]
+\textit{User:}\\
+Narrative:\\
+\mbox{[NARRATIVE]}\\[2pt]
+Decompose this narrative into the distinct sub-aspects a complete,
+well-rounded answer must cover. Return strict JSON with exactly this
+shape:\\
+\{"sub\_aspects": [\\
+\phantom{\{}\{"title": "<short noun-phrase name of the aspect, 3-8 words>",\\
+\phantom{\{}\ "importance": "vital" | "okay",\\
+\phantom{\{}\ "expected\_facts": ["<one-sentence fact a good answer would state>", ...]\}\\
+]\}\\[2pt]
+Rules:\\
+- 5 to 12 sub\_aspects, mutually distinct (no overlapping or duplicate
+aspects).\\
+- "vital" = the narrative explicitly asks about it or an answer
+omitting it would clearly be incomplete; "okay" = secondary/supporting
+aspect.\\
+- 2 to 4 expected\_facts per aspect, each a single short declarative
+sentence.\\
+- Titles must be specific to this narrative, not generic ("Economic impact
+of X on Y", not "Impacts").\\
+- JSON only. No text before or after.
+\par\endgroup
+
+The resulting sub-aspects are mapped to checklist items by a
+deterministic checklist-conversion step. The conversion rule is checked
+against the 22-topic development checklist before applying it to the
+119 test topics.
+
+\paragraph{Evidence sufficiency and follow-up queries.}
+
+\begingroup
+\footnotesize\ttfamily\raggedright
+Return ONLY one JSON object. No markdown. No explanation.\\
+Required schema:
+\{"enough":boolean,"queries":string[]\}\\
+If the evidence already supports the topic, return\\
+\{"enough":true,"queries":[]\}.\\
+If evidence is insufficient, return\\
+\{"enough":false,"queries":[...]\} with 1-3 BM25 keyword queries.\\
+Query rules: 4-12 English tokens; keyword phrase, not sentence/question;
+one aspect only; no duplicates.\\
+Forbidden words: obtain, find, source, sources, detail, detailed,
+comprehensive, concrete, examples, overview, history, impact, provide,
+explain.\\
+Previous queries: [PREVIOUS QUERIES]\\
+Topic: [NARRATIVE]\\
+Aspect checklist (use when judging sufficiency and choosing follow-up
+queries; prefer queries that target aspects not yet covered by the
+evidence):\\
+\mbox{[CHECKLIST ITEMS]}\\
+Evidence:\\
+\mbox{[DOCUMENT IDS AND EXCERPTS]}
+\par\endgroup
+
+After an empty model response, the runtime varies the final retry line
+to avoid replaying a cached empty response. The retry suffix does not
+change the task definition.
+
+\paragraph{Dense answer generation.}
+
+\begingroup
+\footnotesize\ttfamily\raggedright
+Prompt version: agentic\_rag\_baseline\_v1-dense\\
+You generate an evidence-grounded TREC RAG answer.\\
+Use only the provided evidence documents. Do not use outside knowledge.\\[2pt]
+LENGTH: the complete answer MUST total between 900 and 1010 words. Short
+answers waste the official budget and lose coverage. Keep adding supported
+factual sentences until you approach 1010 words.\\[2pt]
+SENTENCE STYLE - every sentence must be:\\
+- atomic: exactly one factual claim per sentence, at most
+\textasciitilde35 words;\\
+- concrete: preserve named entities, numbers, dates, organizations, places
+verbatim from the evidence;\\
+- grounded: cited to the evidence documents that state the fact.\\
+- maximally SPECIFIC: prefer the most specific fact available - named
+people, organizations, places, causes and their outcomes, findings and their
+evidence. A precise claim (who did what, why, with what result) scores; a
+general statement about the same aspect does not.\\
+Do NOT write generic overview sentences that only describe the topic in the
+abstract (e.g. 'This is an important and dynamic field', 'X is part of
+culture'). Such sentences are worthless and must be omitted.\\
+Good: "Persistent gender and racial pay gaps affect athlete compensation,
+and business interests shape both media-rights deals and team management."\\
+Bad: "Athlete compensation is a controversial and important topic."\\
+No introduction, no conclusion, no hedging, no restating the question -
+only supported facts.\\[2pt]
+Organize the answer by these aspects of the topic; write roughly 80-120
+words for EACH aspect (a few sentences each), in this order:\\
+\mbox{[CHECKLIST ITEMS]}\\[2pt]
+Citations are zero-indexed positions into the references array, not docids.\\
+Each sentence may cite at most three references.\\
+References must be unique ClimbMix docids and every reference must be cited
+at least once.\\
+Do not include uncited retrieved documents in references.\\
+Return only strict JSON. Do not use Markdown fences, comments, or explanatory
+prose.\\
+Required JSON shape:\\
+\{"references":["shard\_00000\_00000"],\\
+"answer":[\{"text":"Supported sentence.","citations":[0]\}]\}\\
+\mbox{[TOPIC ID AND NARRATIVE]}\\
+Evidence documents:\\
+\mbox{[UP TO 60 DOCUMENTS,}\\
+\mbox{1,200 CHARACTERS EACH]}
+\par\endgroup
+
+\paragraph{Sentence-level verify/revise (production mode:
+\texttt{weaken}).}
+
+\begingroup
+\footnotesize\ttfamily\raggedright
+You are revising a cited RAG answer so that every sentence is fully supported
+by its cited evidence.\\
+For each sentence below, compare the sentence against its cited evidence
+excerpts and act:\\
+- Fully supported: keep the sentence unchanged with the same citations.\\
+- Over-extended (partially supported): rewrite it so it claims ONLY what the
+excerpts support. Do not add new claims.\\
+- Not supported by its citations: rewrite it into a weaker related claim
+that the excerpts DO support (hedge, narrow, or generalize it); if other
+cited excerpts support the point, switch its citations to those; remove the
+sentence only when nothing in any excerpt relates to it.\\
+Rules: do not invent new references or citations; keep citation indices
+pointing into the references array below; each sentence at most three
+citations; keep the overall answer coherent and under 1024 words; keep the
+original sentence order for kept/rewritten sentences.\\
+Return only strict JSON, no Markdown fences, exactly this shape:\\
+\{"references":["shard\_00000\_00000"],\\
+"answer":[\{"text":"Supported sentence.","citations":[0]\}]\}\\
+The references array must stay the same list (unused entries are allowed and
+will be pruned automatically).\\
+\mbox{[TOPIC ID AND NARRATIVE]}\\
+References array (index -> docid): \mbox{[REFERENCES]}\\
+Sentences to verify:\\
+\mbox{[BATCH OF AT MOST 20 SENTENCES,}\\
+\mbox{CITATIONS, AND EVIDENCE EXCERPTS]}
+\par\endgroup
+
+\paragraph{Citation ordering and final validation (no LLM prompt).}
+After verify/revise, the runtime sends each answer sentence and its
+cited document IDs to the evidence-scoring service with a 200-character
+evidence budget. It sorts multiple citations by the returned evidence
+score. If the service is unavailable, it leaves the original order
+unchanged. Citation reordering therefore has no LLM prompt to
+reproduce.
+
+\paragraph{Worked trace: development topic 144.} The narrative asks for
+a comparison of why banks such as Silicon Valley Bank fail, the hidden
+risks to depositors, and how banks differ from credit unions. The
+sufficiency judge ran for three iterations before stopping:
+
+\begin{itemize}
+\setlength\itemsep{2pt}
+\item \textbf{Iteration 0} (12 documents read): \texttt{enough=false};
+follow-up queries requested on FDIC/NCUA regulatory oversight,
+credit-union community lending, and depositor/investor risk exposure.
+\item \textbf{Iteration 1} (10 more documents read): \texttt{enough=false};
+follow-up queries requested on ownership/governance differences and
+service/fee comparisons.
+\item \textbf{Iteration 2}: \texttt{enough=true}; loop stops with
+\texttt{stop\_reason=enough} after 3 iterations total.
+\end{itemize}
+
+The summary is drawn from the complete stored development record for topic
+144: its judge trace, iteration trace, and per-topic execution status
+records. It is a development example and is not taken from
+the separately archived official 119-topic run. Exact artifact identifiers
+and hashes are provided in the project reproducibility record.
+
+\paragraph{Stopping Behavior on the 119 Test Topics.} All 119 official topics
+completed. Table~\ref{tab:trace-topology} aggregates the per-topic
+execution status records: most topics exhaust the reading budget rather
+than stopping because the judge reports sufficiency, and most reach the
+6-iteration cap. The caps were active constraints, not fallback limits:
+82 topics stopped at the document budget and 89 reached iteration 6.
+
+\begin{center}
+\captionof{table}{Stop reason and iteration count across all 119
+official topics, aggregated from per-topic execution status records.}
+\label{tab:trace-topology}
+\centering
+\small
+\begin{tabular}{@{}lrr@{}}
+\toprule
+Stop reason & Topics & Share \\
+\midrule
+Maximum documents read (60) & 82 & 68.9\% \\
+Judge reports sufficient (\texttt{enough}) & 36 & 30.3\% \\
+No valid follow-up query & 1 & 0.8\% \\
+\bottomrule
+\end{tabular}
+
+\smallskip
+
+\begin{tabular}{@{}lr@{}}
+\toprule
+Iterations used & Topics \\
+\midrule
+2 & 5 \\
+3 & 8 \\
+4 & 4 \\
+5 & 13 \\
+6 (cap) & 89 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Mean iterations were 5.45 (median 6, cap 6). Documents read
+successfully ranged from 22 to 60 (mean 55.04, median 60, cap 60); no
+topic failed outright. All 119 topics completed without runtime failures.

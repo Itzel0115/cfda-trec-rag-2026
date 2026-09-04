@@ -1,0 +1,124 @@
+% Publication-oriented schematic of the final Retrieval pipeline. Query2Doc
+% creates one expanded BM25 query (one pseudo-document plus the original
+% narrative repeated five times); follow-up routes are added by the bounded
+% acquisition loop. The cutoff is computed before deep-tail fusion and applied
+% to the final post-deep ranking.
+\definecolor{cfdaNavy}{HTML}{18324B}
+\definecolor{cfdaSlate}{HTML}{526675}
+\definecolor{cfdaBlueFill}{HTML}{EEF3F7}
+\definecolor{cfdaBlueLine}{HTML}{607F99}
+\definecolor{cfdaSageFill}{HTML}{EDF6F1}
+\definecolor{cfdaSageLine}{HTML}{4F7F6F}
+\definecolor{cfdaSandFill}{HTML}{FAF5E8}
+\definecolor{cfdaSandLine}{HTML}{9A7A3D}
+\definecolor{cfdaNeutral}{HTML}{F7F8F8}
+\definecolor{cfdaFrame}{HTML}{CCD8E1}
+
+\begin{tikzpicture}[
+  box/.style={draw=cfdaSlate, rounded corners=2pt, fill=white,
+    align=center, minimum height=0.88cm, inner sep=3pt, font=\small},
+  process/.style={box, fill=cfdaBlueFill, draw=cfdaBlueLine},
+  endpoint/.style={box, fill=cfdaSageFill, draw=cfdaSageLine,
+    rounded corners=5pt},
+  artifact/.style={box, fill=cfdaSandFill, draw=cfdaSandLine,
+    rounded corners=4pt},
+  input/.style={box, fill=cfdaNeutral},
+  decision/.style={draw=cfdaBlueLine, diamond, aspect=2.05,
+    fill=cfdaBlueFill, align=center, inner sep=1.8pt, font=\small},
+  stage/.style={font=\small\bfseries, text=cfdaNavy},
+  flow/.style={-{Stealth[length=2mm]}, line width=0.62pt, draw=cfdaSlate},
+  loop/.style={flow, draw=cfdaBlueLine},
+  signal/.style={-{Stealth[length=1.8mm]}, line width=0.56pt,
+    draw=cfdaBlueLine, dashed},
+  note/.style={font=\scriptsize, text=cfdaSlate, fill=white, inner sep=1pt},
+  detail/.style={draw=cfdaFrame, rounded corners=2pt, fill=cfdaNeutral,
+    align=center, font=\footnotesize, inner sep=3pt, text=cfdaSlate},
+]
+
+% Stage 1: initial routes and bounded follow-up acquisition.
+\node[stage,anchor=west] (s1title) at (0.10,7.05)
+  {Stage 1: agentic multi-route candidate generation};
+\node[endpoint,text width=1.35cm] (narr) at (0.75,5.35) {Narrative};
+\node[process,text width=4.35cm,minimum height=1.65cm] (initialroutes) at (4.25,5.35)
+  {Initial BM25 routes\\Original narrative: weight 1.0\\Query2Doc: 1 pseudo-doc + narrative $\times5$\\weight 1.0; omit if unusable};
+\node[process,text width=1.82cm] (rrf) at (7.95,5.35)
+  {Initial weighted RRF\\$k=60$};
+\node[box,text width=1.65cm] (read) at (10.30,5.35)
+  {Initial read\\first 5 successfully\\fetched};
+\node[decision] (judge) at (13.15,5.35) {Evidence\\sufficient?};
+\node[endpoint,text width=2.02cm] (pool) at (18.45,5.35)
+  {Final pre-rerank pool\\up to 5,000};
+
+\draw[flow] (narr) -- (initialroutes);
+\draw[flow] (initialroutes) -- (rrf);
+\draw[flow] (rrf) -- (read);
+\draw[flow] (read) -- (judge);
+\draw[flow] (judge) -- (pool)
+  node[midway,above,yshift=1.5pt,note] {sufficient / budget stop};
+
+\node[box,text width=1.95cm] (validate) at (13.15,3.20)
+  {Accept up to 3 valid\\follow-up queries};
+\node[process,text width=2.15cm] (followup) at (16.05,3.20)
+  {Separate BM25 routes\\depth 5,000\\weight 0.25 each};
+\node[process,text width=1.82cm] (refuse) at (18.75,3.20)
+  {Recompute\\weighted RRF};
+\node[box,text width=1.62cm] (readmore) at (21.10,3.20)
+  {Read up to\\$+4$ unseen};
+\draw[loop] (judge.south) -- (validate.north)
+  node[midway,right,note] {insufficient};
+\draw[loop] (validate) -- (followup);
+\draw[loop] (followup) -- (refuse);
+\draw[loop] (refuse) -- (readmore);
+\coordinate (loopright) at (22.35,3.20);
+\coordinate (looptop) at (22.35,6.45);
+\coordinate (loopin) at (13.15,6.45);
+\draw[loop] (readmore.east) -- (loopright) -- (looptop) -- (loopin) -- (judge.north);
+\node[note] at (17.75,6.45) {next acquisition iteration};
+\node[detail,text width=6.40cm] (budgetnote) at (5.20,3.20)
+  {cap 12 successfully read documents /\\max 3 acquisition iterations};
+\node[inner sep=0pt] (loopbound) at (22.35,6.45) {};
+
+% Stage 2: final ranking construction and serialization.
+\node[stage,anchor=west] (s2title) at (0.10,1.15)
+  {Stage 2: ranking and variable-depth serialization};
+\node[input,text width=1.55cm] (poolin) at (0.85,-1.20) {Pre-rerank\\pool};
+\node[process,text width=2.45cm,minimum height=1.55cm] (head) at (3.55,-1.20)
+  {Top-100 head fusion\\BM25 + CE + dense\\RRF $1{:}1{:}1$, $k=60$};
+\node[process,text width=2.55cm,minimum height=1.55cm] (facet) at (6.85,-1.20)
+  {Facet retrieval\\$\leq20$ facets / $\leq40$ queries\\BM25@1,000; RRF $k=60$};
+\node[process,text width=2.20cm,minimum height=1.55cm] (merge) at (9.95,-1.20)
+  {Protected splice\\keep exact pre-facet\\Top-200};
+\node[process,text width=2.60cm,minimum height=1.55cm] (deep) at (13.20,-1.20)
+  {Deep-tail CE/pool fusion\\RRF $1{:}1$, $k=60$\\Dev 101--5,000\\Official 101--3,000};
+\node[process,text width=1.85cm,minimum height=1.55cm] (select) at (16.50,-1.20)
+  {Take top $k_q$\\of final ranking};
+\node[endpoint,text width=1.52cm] (out) at (19.10,-1.20)
+  {Six-column\\TREC run};
+\node[detail,text width=5.30cm] (cutoff) at (13.25,0.72)
+  {Compute $k_q$ from post-splice/pre-deep score\\$\tau=0.20$, rank-1 anchor; clip $[4,K]$\\Dev $K=1{,}000$ / Official $K=5{,}000$};
+\node[detail,text width=9.20cm] (facetnote) at (5.65,-3.02)
+  {tail: score $\downarrow$, best rank $\uparrow$, document ID lexicographic;\\remove Top-200 IDs; append unused pre-facet tail; failure $\rightarrow$ pre-facet ranking};
+\node[detail,text width=7.30cm] (deepnote) at (14.65,-3.02)
+  {Top-100 unchanged; official 3,001--5,000 retain pool order;\\membership unchanged};
+
+\draw[flow] (poolin) -- (head);
+\draw[flow] (head) -- (facet);
+\draw[flow] (facet) -- (merge);
+\draw[flow] (merge) -- (deep);
+\draw[flow] (deep) -- (select);
+\draw[flow] (select) -- (out);
+\draw[signal] (merge.north) |- (cutoff.west);
+\coordinate (depthturn) at (16.50,0.72);
+\draw[signal,-] (cutoff.east) -- (depthturn);
+\draw[signal] (depthturn) -- (select.north)
+  node[midway,right=2.5pt,note] {depth $k_q$};
+
+\begin{scope}[on background layer]
+  \node[draw=cfdaFrame, fill=cfdaBlueFill!28, rounded corners=3pt,
+    fit=(s1title)(narr)(initialroutes)(rrf)(read)(judge)(pool)
+      (validate)(followup)(refuse)(readmore)(budgetnote)(loopbound), inner sep=8pt] {};
+  \node[draw=cfdaFrame, fill=cfdaBlueFill!28, rounded corners=3pt,
+    fit=(s2title)(poolin)(head)(facet)(merge)(deep)(select)(out)(cutoff)
+      (facetnote)(deepnote), inner sep=8pt] {};
+\end{scope}
+\end{tikzpicture}

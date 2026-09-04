@@ -1,0 +1,27 @@
+\begin{table*}[tb]
+\centering
+\caption{Representative Retrieval configurations on the 22-topic
+development set. The rows are not a strictly cumulative ablation: the
+pool columns and the submitted-depth column refer to different objects,
+and only the final two rows are a clean same-pool ordering comparison.
+Boldface marks a column maximum, not statistical significance.}
+\label{tab:retrieval-results}
+\small
+\setlength{\tabcolsep}{4.5pt}
+\renewcommand{\arraystretch}{1.12}
+\begin{tabularx}{\textwidth}{@{}>{\raggedright\arraybackslash}Xrrr@{}}
+\toprule
+Configuration & Pool $R@1000$ & Pool $R@5000$ & Submitted $R@k_q$ \\
+\midrule
+Original-narrative BM25 & 0.2635 & --$^{*}$ & -- \\
+Query-expanded retrieval with head reranking & 0.2945 & \textbf{0.5155} & -- \\
+Facet-expanded retrieval with protected head & 0.3005 & 0.4938 & -- \\
+Selected pre-deep-tail retrieval configuration & 0.2937 & 0.4895 & 0.2204 \\
+Selected deep-tail retrieval configuration & \textbf{0.3159} & 0.4895 & \textbf{0.2343} \\
+\bottomrule
+\end{tabularx}
+\smallskip
+
+\noindent{\footnotesize $^{*}$The original-narrative baseline was
+retrieved only to depth 1,000.}
+\end{table*}

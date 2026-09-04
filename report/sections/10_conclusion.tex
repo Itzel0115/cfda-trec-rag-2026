@@ -1,0 +1,16 @@
+\section{Conclusion}
+
+We developed separate Retrieval and RAG pipelines for TREC RAG 2026.
+The Retrieval results show that a protected head can be combined with
+deep-tail reranking while the variable-depth cutoff remains tied to
+post-splice, pre-deep-CE candidate-pool scores. The RAG results show that coverage and citation
+support must be examined together when comparing stored RAG
+configurations.
+
+Both pipelines separate protected or bounded evidence-selection stages
+from later ranking and answer-construction stages: Retrieval protects the head before tail reranking, and RAG caps
+additional reading before dense writing and verification. Further
+experiments should compare adaptive stopping policies under controlled
+reading budgets. Organizer judgments, when released, will be needed to
+determine whether the development-set patterns transfer to the test
+topics.

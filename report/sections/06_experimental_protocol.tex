@@ -1,0 +1,65 @@
+\section{Experiments and Results}
+
+\paragraph{Experimental protocol.}
+
+All effectiveness experiments and system comparisons reported in this
+section use the 22-topic development set; the official 119-topic data
+are used only for structural submission diagnostics. Retrieval uses
+three projected UMBRELA qrels, relevance threshold
+$\mathrm{rel}\geq2$, and linear-gain nDCG. P@10, Recall, MAP, and MRR
+use binarized $\mathrm{rel}\geq2$ judgments. For each Retrieval run, we
+evaluate independently against the three projected UMBRELA qrels and
+report the arithmetic mean of the resulting aggregate metrics. The
+qrels are not merged. We validate rank continuity, duplicate
+identifiers, JSON structure, citation indices, and response-length
+compliance before submission.
+
+\paragraph{Official submission.}
+
+Our team (team ID
+\texttt{2026 cfda rag}) submitted official runs for the 119-topic test
+set. Team submission records list \texttt{cfda-vfs-deep} (priority 1),
+corresponding to the selected deep-tail retrieval configuration, and
+\texttt{cfda-vfs-unc} (priority 2), corresponding
+to the selected pre-deep-tail retrieval configuration described in
+\S\ref{sec:retrieval-method}, as the two Retrieval runs. They list
+\texttt{cfda-w5c} (priority 1) as the RAG run, corresponding to the
+selected bounded 60-document acquisition configuration described in
+\S\ref{sec:rag-method}.
+Both Retrieval submissions were serialized with the
+variable-depth rule of Eq.~\ref{eq:vark} at $K=5{,}000$, giving
+per-topic depths from 137 to 4,218 (median 1,080); each run file
+contains 176,224 rows.
+The two runs share the same underlying candidate pool, unchanged
+top-100 prefix, and per-topic depth. Deep-tail reranking changes the tail
+order for every topic and, for 103 of 119 topics, changes which
+documents fall inside the submitted prefix. At $K=1{,}000$, an
+intermediate official serialization made 63 of 119 topics hit the cap.
+Because the task specifies no maximum depth and the pool held up to
+5,000 documents, we retained the development-selected $\tau=0.20$ and
+rank-1 anchor and raised only the team cap to $K=5{,}000$, reducing cap
+domination. This decision used structural diagnostics, not official
+judgments. Official
+test-set scores are assigned by the track
+organizers after submission and are not yet available at the time of
+this draft; all scores reported below are development-set diagnostics,
+as noted throughout.
+
+The selected Retrieval output is the variable-depth system. The fixed
+top-1000 output is retained as a fixed-depth comparison because it uses a
+different submission depth: its Recall@1000 of 0.3159 is not substituted
+for the variable-depth Recall@submitted-$k$ of 0.2343.
+
+For RAG, we compare the 12-document-cap baseline, the 60-document
+deep-reading configuration, and the selected bounded 60-document
+acquisition configuration; extended reading is reserved for failure
+analysis. For $V_{\mathrm{strict}}$, the selected-minus-deep-reading
+mean paired topic-level difference is $-0.0042$, with an approximate
+95\% paired $t$ interval of $[-0.0497,+0.0412]$ and an 8/11/3
+win/loss/tie record. Selection reflects stronger citation-support
+behavior; the $V_{\mathrm{strict}}$ difference is inconclusive, and the stored
+variants do not support a single-factor causal interpretation.
+
+Key implementation and operating parameters for both systems are summarized in Appendix
+Table~\ref{tab:appendix-retrieval-parameters} (Retrieval) and
+Table~\ref{tab:appendix-rag-parameters} (RAG).

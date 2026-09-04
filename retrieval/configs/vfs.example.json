@@ -1,0 +1,15 @@
+{
+  "description": "Example configuration reconstructed from the final selected VFs pipeline; not the original competition runtime environment.",
+  "policy": "VFs",
+  "query2doc_enabled": true,
+  "facet_queries_enabled": true,
+  "rrf_k": 60,
+  "anchor_weight": 1.0,
+  "followup_weight": 0.25,
+  "head_depth": 100,
+  "deep_tail": {"development_start_rank": 101, "official_start_rank": 1001, "official_max_depth": 5000},
+  "variable_depth": {"tau": 0.2, "rank_anchor": "rank-1", "minimum_depth": 4, "official_max_depth": 5000},
+  "inputs": {"topics": "<approved-topic-tsv>", "candidate_pool": "<approved-candidate-pool>"},
+  "services": {"pyserini_api_url": "${PYSERINI_API_URL}", "index": "${PYSERINI_INDEX}", "token_env": "PYSERINI_API_TOKEN"},
+  "models": {"head_cross_encoder": "<approved-head-cross-encoder>", "deep_cross_encoder": "<approved-deep-cross-encoder>", "dense_encoder": "<approved-dense-encoder>"}
+}

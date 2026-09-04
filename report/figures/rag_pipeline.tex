@@ -1,0 +1,129 @@
+% Publication-oriented schematic of the final bounded RAG pipeline. The
+% offline checklist is independent of Retrieval facets and guides both
+% sufficiency assessment and dense answer structure. The initial read is the
+% first acquisition iteration (iteration 0); later follow-up routes accumulate.
+\definecolor{cfdaNavy}{HTML}{18324B}
+\definecolor{cfdaSlate}{HTML}{526675}
+\definecolor{cfdaBlueFill}{HTML}{EEF3F7}
+\definecolor{cfdaBlueLine}{HTML}{607F99}
+\definecolor{cfdaSageFill}{HTML}{EDF6F1}
+\definecolor{cfdaSageLine}{HTML}{4F7F6F}
+\definecolor{cfdaSandFill}{HTML}{FAF5E8}
+\definecolor{cfdaSandLine}{HTML}{9A7A3D}
+\definecolor{cfdaNeutral}{HTML}{F7F8F8}
+\definecolor{cfdaFrame}{HTML}{CCD8E1}
+
+\begin{tikzpicture}[
+  box/.style={draw=cfdaSlate, rounded corners=2pt, fill=white,
+    align=center, minimum height=0.88cm, inner sep=3pt, font=\small},
+  process/.style={box, fill=cfdaBlueFill, draw=cfdaBlueLine},
+  endpoint/.style={box, fill=cfdaSageFill, draw=cfdaSageLine,
+    rounded corners=5pt},
+  artifact/.style={box, fill=cfdaSandFill, draw=cfdaSandLine,
+    rounded corners=4pt},
+  input/.style={box, fill=cfdaNeutral},
+  decision/.style={draw=cfdaBlueLine, diamond, aspect=2.05,
+    fill=cfdaBlueFill, align=center, inner sep=1.8pt, font=\small},
+  stage/.style={font=\small\bfseries, text=cfdaNavy},
+  note/.style={font=\scriptsize, text=cfdaSlate, fill=white, inner sep=1pt},
+  flow/.style={-{Stealth[length=2mm]}, line width=0.62pt, draw=cfdaSlate},
+  loop/.style={flow, draw=cfdaBlueLine},
+  context/.style={-{Stealth[length=1.8mm]}, line width=0.52pt,
+    draw=cfdaSandLine, dashed},
+  detail/.style={draw=cfdaFrame, rounded corners=2pt, fill=cfdaNeutral,
+    align=center, font=\footnotesize, inner sep=3pt, text=cfdaSlate},
+]
+
+% Stage 1: bounded evidence acquisition.
+\node[stage,anchor=west] (s1title) at (0.10,5.95)
+  {Stage 1: bounded evidence acquisition};
+\node[artifact,text width=3.00cm,font=\footnotesize] (checklist) at (7.30,5.45)
+  {Offline RAG checklist\\(independent of Retrieval facets)};
+\node[endpoint,text width=1.38cm] (narr) at (0.75,4.00) {Narrative};
+\node[process,text width=1.88cm] (seed) at (3.00,4.00)
+  {Anchor BM25\\top 1,000};
+\node[process,text width=1.55cm] (rerankinitial) at (5.40,4.00)
+  {Rerank\\top 300};
+\node[box,text width=1.92cm] (initial) at (7.75,4.00)
+  {Initial read: 12\\iteration 0\\(first iteration)};
+\node[decision] (judge) at (10.75,4.00) {Evidence\\sufficient?};
+\node[endpoint,text width=1.62cm] (evidence) at (15.00,4.00)
+  {Final evidence\\set};
+
+\draw[flow] (narr) -- (seed);
+\draw[flow] (seed) -- (rerankinitial);
+\draw[flow] (rerankinitial) -- (initial);
+\draw[flow] (initial) -- (judge);
+\draw[context] (checklist.south east) -- (judge.north west);
+\draw[flow] (judge) -- (evidence)
+  node[midway,above,yshift=1.5pt,note] {sufficient};
+
+\node[box,text width=1.90cm] (validate) at (10.75,1.60)
+  {Validate proposals\\accept up to 3 valid};
+\node[decision] (gate) at (13.90,1.60) {Valid follow-up\\and budget?};
+\node[process,text width=2.05cm] (retrieve) at (17.40,1.60)
+  {Follow-up BM25\\depth 1,000\\accumulate route};
+\node[process,text width=2.70cm] (refuse) at (20.70,1.60)
+  {Weighted RRF\\anchor 1.0 +\\accumulated follow-ups\\0.25 each; $k=60$};
+\node[process,text width=1.48cm] (rerankmore) at (23.50,1.60)
+  {Rerank\\top 300};
+\node[box,text width=1.55cm] (readmore) at (23.50,0.05)
+  {Read up to\\$+10$ unseen};
+
+\draw[loop] (judge.south) -- (validate.north)
+  node[midway,right=2pt,note] {insufficient};
+\draw[loop] (validate) -- (gate);
+\draw[loop] (gate) -- (retrieve)
+  node[midway,above,yshift=1.5pt,note] {yes};
+\draw[loop] (retrieve) -- (refuse);
+\draw[loop] (refuse) -- (rerankmore);
+\draw[loop] (rerankmore.south) -- (readmore.north);
+\coordinate (stopbend) at (15.00,2.68);
+\draw[flow,-] (gate.north) |- (stopbend);
+\draw[flow] (stopbend) -- (evidence.south)
+  node[midway,right=3pt,note,align=left] {no valid query /\\budget stop};
+\node[note] at (20.70,3.10) {unrecovered judge failure $\rightarrow$ stop};
+\node[detail,text width=7.60cm] (budgetnote) at (4.55,1.60)
+  {60 successfully read documents /\\max 6 total acquisition iterations; initial read = iteration 0};
+
+\coordinate (loopright) at (24.70,0.05);
+\coordinate (looptop) at (24.70,5.55);
+\coordinate (loopin) at (10.75,5.55);
+\draw[loop] (readmore.east) -- (loopright) -- (looptop) -- (loopin) -- (judge.north);
+\node[note] at (17.80,5.55) {next acquisition iteration};
+\node[inner sep=0pt] (loopbound) at (24.70,5.55) {};
+
+% Stage 2: writing, validation, and deterministic finalization.
+\node[stage,anchor=west] (s2title) at (0.10,-1.75)
+  {Stage 2: dense writing and deterministic finalization};
+\node[input,text width=1.42cm,minimum height=1.20cm] (evidencein) at (0.85,-3.00)
+  {Final evidence\\set};
+\node[box,text width=1.82cm,minimum height=1.20cm] (dense) at (3.60,-3.00)
+  {Checklist-guided\\dense answer\\writing};
+\node[box,text width=1.30cm,minimum height=1.20cm] (trimone) at (6.60,-3.00)
+  {Trim to\\$\leq 1{,}020$};
+\node[process,text width=1.42cm,minimum height=1.20cm] (verify) at (9.00,-3.00) {Verify or\\revise};
+\node[box,text width=1.30cm,minimum height=1.20cm] (trimtwo) at (11.45,-3.00)
+  {Trim to\\$\leq 1{,}020$};
+\node[box,text width=1.42cm,minimum height=1.20cm] (reorder) at (13.95,-3.00) {Reorder\\citations};
+\node[process,text width=1.55cm,minimum height=1.20cm] (validateout) at (16.55,-3.00)
+  {Strict JSON\\validation};
+\node[endpoint,text width=1.20cm,minimum height=1.20cm] (out) at (19.05,-3.00)
+  {Final\\JSONL};
+\draw[flow] (evidencein) -- (dense);
+\draw[flow] (dense) -- (trimone);
+\draw[flow] (trimone) -- (verify);
+\draw[flow] (verify) -- (trimtwo);
+\draw[flow] (trimtwo) -- (reorder);
+\draw[flow] (reorder) -- (validateout);
+\draw[flow] (validateout) -- (out);
+
+\begin{scope}[on background layer]
+  \node[draw=cfdaFrame, fill=cfdaBlueFill!28, rounded corners=3pt,
+    fit=(s1title)(checklist)(narr)(seed)(rerankinitial)(initial)(judge)(evidence)
+      (validate)(gate)(retrieve)(refuse)(rerankmore)(readmore)(budgetnote)(loopbound), inner sep=8pt] {};
+  \node[draw=cfdaFrame, fill=cfdaBlueFill!28, rounded corners=3pt,
+    fit=(s2title)(evidencein)(dense)(trimone)(verify)(trimtwo)(reorder)
+      (validateout)(out), inner sep=8pt] {};
+\end{scope}
+\end{tikzpicture}

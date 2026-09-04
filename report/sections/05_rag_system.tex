@@ -1,0 +1,83 @@
+\subsection{Bounded Agentic Evidence Acquisition}
+\label{sec:rag-method}
+
+Figure~\ref{fig:rag} shows the independent RAG pipeline, Bounded
+Agentic Evidence Acquisition with Citation-Aware Dense Writing. It
+starts from a BM25 candidate set, reads a bounded initial set, and asks
+a sufficiency judge whether to issue valid follow-up queries and read
+more evidence. Starting at BM25 depth 1,000, the initial 12-document read
+is the first acquisition iteration (iteration 0 in logs). Each later
+iteration reads up to 10 unseen documents, for at most six total iterations
+and 60 successfully read documents.
+
+The initial ranking, as well as every fused ranking produced after a
+valid follow-up acquisition iteration, is passed through a top-300 reranking request,
+handled by an auxiliary inference service. Among the incoming top 300,
+a MiniLM cross-encoder scores successfully fetched text truncated to
+256 words. For scored documents, the cross-encoder order is reciprocal-rank
+fused 1:1 with the incoming BM25/RRF-derived order:
+\begin{equation}
+s(d) = \sum_{r \in \{\mathrm{incoming},\,\mathrm{CE}\}} \frac{1}{60 + \operatorname{rank}_r(d)}.
+\label{eq:rag-rerank}
+\end{equation}
+Fusion retains the incoming ranking's lexical prior instead of
+replacing it with the cross-encoder order. No stored evaluation supports
+a numeric pure-cross-encoder ablation for this component. Documents
+whose text could not be fetched are appended after the fused head,
+before the remaining, unreranked incoming-order tail. Passage reading
+requests at most three passages per document and falls back to
+document-level reading, capped at 200 lines, when the passage service is
+unavailable. The RAG checklist is generated offline from the narrative,
+independently of the Retrieval facet expansion in
+\S\ref{sec:retrieval-method}, and supplied as evidence-coverage guidance.
+It does not use organizer-provided nugget annotations or relevance judgments.
+Its generated \texttt{vital}/\texttt{okay} checklist priorities are runtime
+guidance, not the evaluator's vital-nugget labels used in $V_{\mathrm{strict}}$.
+Runtime sufficiency,
+follow-up, dense-answer, and verify/revise calls use
+\texttt{gpt-5.6-sol} at temperature 0. Separately,
+\texttt{gpt-oss-120b} generates the offline checklist and judges nugget
+coverage and citation support in the public RAGDoll development evaluator; it
+is not the answer generator. Exact prompt-version identifiers remain in
+submission metadata and Appendix~\ref{app:prompts-traces}.
+
+The sufficiency judge returns an \texttt{enough} decision or candidate
+follow-ups. Deterministically valid proposals are searched at depth 1,000
+as accumulated BM25 routes and fused with the persistent anchor BM25 route
+(weights 0.25 each and 1.0, respectively; RRF $k=60$). The loop stops on
+sufficient evidence, an exhausted document or iteration budget, no valid
+follow-up after validation, or an unrecovered judge failure;
+Appendix~\ref{app:query-legality} gives
+the validator rules.
+
+The dense-writing branch constructs sentence-level answer objects and a reference list
+from the bounded evidence set. The finalization order is dense writing,
+trim to the implementation cap, verify/revise, a second trim, citation
+reordering, and strict JSONL validation. The 900--1,010-word dense-writer
+instruction is a generation target, not a validated final lower bound:
+verify/revise can rewrite or remove sentences, and the final validator
+enforces the upper limit but no minimum. Verify/revise works in batches of
+20 sentences when batching is needed and adopts a revised answer only
+if strict validation succeeds and the result is non-empty; otherwise it
+returns the original answer. Citation reorder uses sentence-evidence
+scores when available. If the evidence-scoring service is unavailable,
+the original citation order is retained. The implementation trim cap is
+1,020 words, below the organizer-specified maximum answer length.
+
+\begin{figure*}[t]
+\centering
+\resizebox{0.98\textwidth}{!}{\input{figures/rag_pipeline.tex}}
+\caption{Bounded Agentic Evidence Acquisition with Citation-Aware Dense
+Writing. The checklist is a supplied artifact; the loop is bounded by
+reading and evidence-acquisition-iteration limits before dense writing and citation finalization.
+The checklist guides both the sufficiency assessment and the structure
+of dense answer generation.
+The recorded acquisition limits (12 initial/up to 10 per iteration/60
+total/at most 6 iterations) are identical between
+the development and official 119-topic runs. The supplied checklists
+contain 7--9 facets per development topic (median 8) and 6--10 per
+official topic (median 9). Dense-writer evidence limits for the
+test-set submission configuration are reported separately in
+Appendix~\ref{app:parameters}.}
+\label{fig:rag}
+\end{figure*}

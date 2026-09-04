@@ -1,0 +1,13 @@
+\section{Task Setup and Evaluation}
+
+\subsection{Tasks and Output Formats}
+
+The 2026 track contains two tasks: Retrieval (R) and Retrieval-Augmented Generation (RAG). The official materials identify ClimbMix as the primary collection and provide separate output conventions for a TREC retrieval run and a JSONL RAG response \citep{trec_rag_website_2026,trec_rag_2026_guidelines}. Retrieval depth is narrative-specific: a system should submit the documents it predicts to be relevant and useful, without padding every narrative to a conventional fixed cutoff. In our implementation, the R output is serialized as a six-column TREC run, while the RAG output contains one JSON object per narrative with metadata, references, and sentence-level answer objects.
+
+The official RAG contract permits up to 1,024 words per narrative and zero to three citations per answer object. The organizer evaluation is described as anonymized system-by-system battles, individualized nugget rubric scoring in the style of AutoNuggetizer, and weighted citation precision and weighted citation recall \citep{trec_rag_2026_guidelines}. No organizer-returned test judgments or official test-set scores were available during development.
+
+\subsection{Development Set and Metrics}
+
+We use a 22-topic development set. For Retrieval, we use three projected UMBRELA qrels \citep{upadhyay2024umbrela} and a deterministic local evaluator with relevance threshold $\mathrm{rel}\geq 2$. nDCG uses the remaining graded labels as linear gain after labels below 2 are assigned zero gain; P@10, Recall, MAP, and MRR use the corresponding binarized $\mathrm{rel}\geq 2$ judgments. We report nDCG@10, Recall at the depth actually submitted for each topic (Recall@submitted-$k$), P@10, MAP, and MRR. The fixed top-1000 Recall value is retained only as a fixed-depth comparison; it is not the variable-depth score.
+
+For RAG, $V_{\mathrm{strict}}$ is the evaluator's \texttt{strict\_vital\_score}: the fraction of vital nuggets receiving full support, with partial support counted as zero. $A$ is \texttt{all\_score}: the coverage over all nuggets, counting full support as 1 and partial support as 0.5. FS, PS, and NS are respectively Full, Partial, and No Support, reported as proportions over judged sentence--citation pairs (with evaluator-error rows excluded). Thus FS and NS are not complementary: the omitted remainder is PS. These are internal development diagnostics, not organizer-returned official metrics. All effectiveness scores reported below are development results; structural diagnostics from the official 119-topic runs are explicitly labeled as such.

@@ -1,0 +1,22 @@
+\begin{table}[H]
+\centering
+\caption{Selected development-output structure. Four-number sequences
+denote minimum / mean / median / maximum.}
+\label{tab:output-stats}
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{tabularx}{\columnwidth}{@{}>{\raggedright\arraybackslash}p{0.25\columnwidth}YY@{}}
+\toprule
+Property & Retrieval & RAG \\
+\midrule
+Topics & 22 & 22 \\
+Output records & 13,232 total rows & 44--71 objects/topic \\
+Depth / refs per topic & $k_q\in[100,1{,}000]$ docs & 12--30 refs \\
+Mean / median & 601.45 / 687.5 docs & 22.41 / 22 refs \\
+Distinct depths & 18 & -- \\
+Word count & -- & 723 / 976.73 / 1,001 / 1,019 \\
+Citations per object & -- & 1 / 1.0288 / 1 / 3 \\
+\bottomrule
+\end{tabularx}
+\end{table}

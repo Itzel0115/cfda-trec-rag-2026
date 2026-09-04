@@ -1,0 +1,12 @@
+\section{Limitations}
+\label{sec:limitations}
+
+Effectiveness is limited to the 22-topic development set; organizer test
+scores were unavailable, and no statistical superiority is claimed.
+Missing writer-visible parameters limit single-factor RAG interpretation.
+Immutable provider model/index snapshots and a versioned top-head service
+checkpoint are not retained. The original source used to produce the official deep-tail run is
+not retained, although a reconstructed replay reproduces the frozen output
+byte-for-byte. Changes to an auxiliary RAG inference service during
+official execution prevent exact per-topic service-version attribution.
+Priorities rely on team metadata because no organizer receipt is retained.

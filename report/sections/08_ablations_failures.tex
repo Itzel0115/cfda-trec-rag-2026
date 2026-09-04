@@ -1,0 +1,34 @@
+\subsection{Development Variants and Failure Analysis}
+\label{sec:ablations}
+
+Query2Doc introduces pseudo-document vocabulary while the original
+narrative remains an anchor. Facet routes expose separately searchable
+requirements. To prevent facet-derived candidates from reordering the
+pre-facet head, we retain the pre-facet top-200 prefix and incorporate
+facet-derived candidates only into the complementary tail.
+
+Recall@submitted-$k$ depends on the topic-specific submitted cutoff and
+must therefore be evaluated on the submitted file. The development Retrieval
+output spans 100--1,000 documents per topic; the corresponding official
+119-topic outputs span 137--4,218. The fixed top-1000 development output provides
+a fixed-depth comparison with Recall@1000=0.3159. The deep CE tail
+preserves the 100-document head and changes tail ordering through the
+specified fusion with pool order; the topic depth remains determined by
+post-splice, pre-deep-CE candidate-pool scores.
+
+The 12-document-cap baseline is descriptively lower than both
+60-document configurations in Table~\ref{tab:rag-results}. The selected
+bounded 60-document acquisition and 60-document deep-reading
+configurations form the close pair;
+their $V_{\mathrm{strict}}$ difference is inconclusive, and selection reflects stronger
+citation-support behavior rather than a statistically significant
+$V_{\mathrm{strict}}$ advantage. A
+larger-budget extended-reading configuration encountered server errors
+on most generation calls, while its recorded failure status did not
+reliably surface those failures. Because execution was incomplete and
+failure reporting was unreliable, we exclude it from formal comparison
+in Table~\ref{tab:rag-results}.
+
+The final word-limit cap enforces the 1,024-word output contract, which
+the selected RAG output satisfies; it does not establish that trimming
+improves answer semantics.
