@@ -1,181 +1,188 @@
 # CFDA TREC RAG 2026
 
-## Overview
+A multi-stage Retrieval and Agentic RAG system developed for the TREC RAG 2026
+track. The project combines query expansion, multi-route retrieval, weighted
+ranking fusion, cross-encoder and dense reranking, dynamic-depth
+finalization, and bounded iterative evidence acquisition.
 
-This repository is a sanitized archival version of the final system developed
-by the CFDA TREC RAG 2026 team. The project explored Retrieval and
-Retrieval-Augmented Generation (RAG) for the TREC RAG 2026 task: retrieve
-useful documents for a narrative and, for the RAG task, produce cited
-evidence-grounded answers.
+[Technical Report](report/main.pdf) · [Architecture](docs/architecture.md) ·
+[Retrieval](docs/retrieval.md) · [Agentic RAG](docs/rag.md) ·
+[Reproducibility](REPRODUCIBILITY.md)
 
-This is a personal archival/portfolio copy of team work. It does not imply
-sole authorship or ownership of every component.
+## Project at a Glance
 
-## Repository Scope
+| Component | Design |
+|---|---|
+| Retrieval | Original narrative + Query2Doc + facet routes |
+| Fusion | Weighted reciprocal-rank fusion, k=60 |
+| Reranking | Protected top-100 head with BM25, cross-encoder, and dense signals; Deep-CE tail |
+| Finalization | Rank-1-anchored variable depth, tau=0.20, max depth 5,000 |
+| Agentic RAG | Iterative evidence acquisition with sufficiency and follow-up-query decisions |
+| Evidence budget | 12 initial documents, up to 10 new documents per iteration, 60-document cap |
+| Validation | Citation, answer-schema, rank-continuity, and output-format checks |
+| Deliverable | Retrieval system, RAG system, and 14-page technical report |
 
-The staging repository preserves the selected architecture, source modules,
-configuration examples, deterministic finalization/validation utilities, and
-synthetic format fixtures. It intentionally excludes:
+## Motivation
 
-- official TREC test topics and other TREC-provided data;
-- qrels and nuggets;
-- generated official checklists and submissions;
-- candidate pools, run traces, and internal logs;
-- model checkpoints and caches;
-- credentials, private server paths, and internal review material.
+TREC RAG narratives ask for evidence across multiple aspects of a complex
+information need. A single lexical retrieval pass can miss terminology,
+facets, or useful documents buried deeper in the candidate pool. This system
+therefore combines complementary retrieval routes and reranking signals, then
+uses a bounded RAG loop to acquire additional evidence before generating and
+validating a cited answer.
 
-The excluded materials remain outside this staging tree for archival or human
-review purposes.
+## System Overview
 
-## Final System
+### Retrieval Pipeline
 
-The final team system consists of two related but distinct source products.
+~~~text
+Narrative
+  → Query2Doc / facet queries
+  → BM25 retrieval
+  → weighted RRF
+  → dense + cross-encoder head fusion
+  → Deep-CE tail reranking
+  → rank-1-anchored variable-depth finalization
+~~~
 
-### Retrieval
+### Agentic RAG Pipeline
 
-```text
-topics → Query2Doc/facet queries → BM25 routes → weighted RRF
-       → top-100 CE/dense head fusion → deep-tail CE
-       → rank-1-anchored variable-depth finalization → TREC run
-```
+~~~text
+Narrative
+  → BM25 seed retrieval
+  → reranking / passage selection
+  → sufficiency decision
+  → follow-up retrieval of unseen evidence
+  → bounded iterative acquisition
+  → evidence-constrained generation
+  → citation verification / revision
+  → schema validation
+~~~
 
-The selected policy is VFs. The source is preserved separately under
-`retrieval/`.
+The two source products remain separate because the official RAG fork has
+different orchestration, prompts, model construction, and runtime contracts.
+See the [detailed architecture](docs/architecture.md).
 
-### RAG
+## Retrieval Design
 
-```text
-topics → BM25-seeded acquisition → sidecar rerank/passages/checklist
-       → iterative sufficiency/query decisions
-       → initial 12, +10 unseen, cap 60, max 6 iterations
-       → dense evidence → answer generation
-       → citation verification/revision → schema validation → JSONL
-```
+The Retrieval pipeline preserves the original narrative as an anchor while
+adding Query2Doc and facet-oriented routes. BM25 candidate lists are combined
+with weighted reciprocal-rank fusion (k=60). A protected head is then
+reranked using BM25, cross-encoder, and dense signals; this concentrates
+higher-precision processing where it has the most leverage.
 
-The official-run RAG fork is preserved separately under `rag/`. It must not be
-naively merged with `retrieval/src/`: the two source trees intentionally differ
-in orchestration, prompts, LLM construction, and related contracts.
+Deep-CE reorders a deeper prefix without changing candidate membership, while
+the original pool tail is preserved. Final output depth is computed from the
+original pool score using a rank-1 anchor and relative threshold tau=0.20,
+with a configurable ceiling of 5,000 documents. The finalizer serializes
+variable-depth TREC runs deterministically for supplied inputs.
 
-## Retrieval Architecture
+Details and configuration are in [docs/retrieval.md](docs/retrieval.md).
 
-VFs combines original narrative and Query2Doc/facet routes over an external
-Pyserini ClimbMix index. Candidate routes use weighted reciprocal-rank fusion
-with `k=60`. The head is protected and fused with BM25, cross-encoder, and
-dense signals. Deep CE can reorder the tail while preserving the original
-candidate membership. `apply_deep_cut.py` computes variable output depth from
-the original pool score, using `tau=0.20`, a rank-1 anchor, minimum 4, and an
-official maximum of 5,000.
+## Agentic RAG Design
 
-## RAG Architecture
+The selected bounded acquisition policy starts with 12 documents, adds up to
+10 unseen documents per iteration, caps evidence acquisition at 60 documents,
+and allows at most six iterations. Each loop retrieves, assesses sufficiency,
+forms a targeted follow-up query when needed, acquires and reranks new
+evidence, and either continues or stops.
 
-W5c uses the separate `rag/src/` fork. It starts with a BM25 seed, uses a
-sidecar for reranking and passage/evidence operations, and iteratively decides
-whether more evidence is needed. The selected policy is bounded at 12 initial
-documents, up to 10 new unseen documents per iteration, 60 documents total,
-and six iterations. Runtime generation and verification used
-`gpt-5.6-sol`; the provider snapshot is not included.
+The downstream path extracts passages and evidence, generates an answer with
+sentence-level citations, verifies and revises citations, and applies
+deterministic final schema checks. The documented runtime used gpt-5.6-sol
+for sufficiency/query, writing, and verify/revise roles; external services are
+configured at runtime. See [docs/rag.md](docs/rag.md).
 
-## Repository Structure
+## Engineering / Research Highlights
 
-- `retrieval/`: Retrieval-side source, VFs policy chain, finalization tools,
-  Node manifests, and portable launcher.
-- `rag/`: official RAG fork source, tests, Node manifests, and example launcher.
-- `evaluation/validators/`: official-shape checker and deterministic tests;
-  no competition outputs are bundled.
-- `docs/`: architecture, Retrieval/RAG behavior, portability, and migration
-  notes.
-- `examples/`: invented topic and output format examples only.
-- `report/`: canonical final technical report and sanitized LaTeX source.
-- `requirements-deepce.txt`: scoped Python requirements for optional deep CE;
-  it is not a complete environment lock.
+- Multi-route query construction exposes both generated vocabulary and
+  separately searchable requirements.
+- Protected-head fusion separates high-precision ranking from deep-tail
+  processing while preserving the candidate pool.
+- Rank-1-anchored variable depth adapts the submitted prefix to topic-level
+  score structure instead of padding every topic to a fixed depth.
+- Bounded evidence acquisition makes the Agentic RAG loop explicit and
+  testable under a finite document and iteration budget.
+- Deterministic finalization and schema validation turn model-produced
+  answers and retrieval outputs into contract-checked deliverables.
+- Separate Retrieval and RAG forks preserve task-specific behavior while
+  keeping their interfaces and boundaries inspectable.
 
-## External Dependencies
+## Selected Results
 
-Fresh execution requires user-provided access to an approved Pyserini/ClimbMix
-service, an approved sidecar implementing the documented HTTP contract, and
-approved LLM/model services. Optional local cross-encoder and dense components
-may require model downloads and caches. Credentials must be supplied through
-environment variables; no credentials are stored here.
+The following are diagnostics on the 22-topic development set, not official
+organizer effectiveness scores.
 
-## Setup
+| Result | Value |
+|---|---:|
+| Selected Retrieval: pool Recall@1000 after Deep-CE | 0.3159 |
+| Selected Retrieval: Recall@submitted-k | 0.2343 |
+| Variable-depth Retrieval: mean submitted depth | 601.45 |
+| Variable-depth Retrieval: P@10 | 0.9076 |
+| Selected bounded 60-document RAG: all-nugget score | 0.5298 |
+| Selected bounded 60-document RAG: Full Support | 97.0% |
 
-Node dependencies are specified separately:
-
-```bash
-(cd retrieval && npm ci)
-(cd rag && npm ci)
-```
-
-Python dependencies for the optional deep CE utility are listed in
-`requirements-deepce.txt`. The historical sidecar dependency tree is not
-included, and its complete environment was not reproducibly pinned.
-
-## Running
-
-Use only approved external data and services. The example commands do not
-provision data or call services by themselves:
-
-```bash
-POOL=/path/to/approved/candidate_pool.trec \
-DEEP=/path/to/approved/deep_pool.trec \
-retrieval/scripts/finalize_retrieval.sh
-```
-
-For RAG, supply `TOPICS`, `CHECKLIST`, `QRELS_DIR`, `SIDECAR_URL`,
-`PYSERINI_API_URL`, and `OPENAI_API_KEY`, then review
-`rag/scripts/run_w5c.example.sh`. Do not use it against official test data
-without team and organizer approval.
-
-## Validation
-
-`evaluation/validators/official_format_check.py` implements the retained
-official-shape checks. The deterministic cutoff test can run with Python
-standard library only:
-
-```bash
-python3 evaluation/validators/test_apply_deep_cut.py
-```
-
-TypeScript checks require dependencies to be installed locally; installation
-is intentionally not performed by this staging build.
-
-## Reproducibility
-
-The repository preserves architecture and deterministic local transformations.
-It does not guarantee byte-identical end-to-end competition reproduction.
-Retrieval depends on external index/model versions and the RAG path depends on
-provider state, sidecar behavior, and credentials. The original sidecar and
-deep-CE producer provenance is incomplete, and some finalization steps were
-reconstructed after the competition run.
-
-See `REPRODUCIBILITY.md` and `docs/portability.md` for the boundaries.
+The report also documents a close comparison between stored RAG variants:
+the 60-document deep-reading configuration reaches all-nugget score 0.5485,
+while the selected bounded configuration reaches stronger Full Support
+(97.0% versus 95.0%). These are descriptive development comparisons, not a
+controlled causal ablation. No organizer-returned official effectiveness
+score was available in the report; official-run structural statistics are
+reported separately there.
 
 ## Technical Report
 
-The frozen final technical report for the team project is available here:
-[Final Technical Report](report/main.pdf). Sanitized LaTeX source is available
-under `report/` for structural inspection.
+The [CFDA TREC RAG 2026 Technical Report](report/main.pdf) is the canonical
+14-page project report. It covers the system design, experimental protocol,
+retrieval and RAG results, ablations and failure analysis, and reproducibility
+boundaries. The accompanying LaTeX source is available under report/.
 
-## Data
+## My Contributions
 
-Competition topics, qrels, nuggets, official checklists, submissions, and run
-artifacts are intentionally excluded. The files under `examples/` are
-synthetic and are not copied TREC records.
+- I focused on retrieval-side experimentation and validation.
+- I investigated ranking and retrieval variants around the integrated system.
+- I led technical and reproducibility validation and final deliverable
+  preparation.
+- I led the drafting, iteration, and finalization of the technical report.
 
-## Limitations
+This project was developed collaboratively within the CFDA TREC RAG 2026
+team. See [ATTRIBUTION.md](ATTRIBUTION.md) for project and third-party
+attribution.
 
-- Provider/model snapshots are not frozen locally.
-- Exact historical sidecar provenance is incomplete.
-- Deep CE historical producer provenance is incomplete.
-- The original competition finalization path was partially reconstructed.
-- Official output and official organizer scores are not bundled.
+## Repository Structure
 
-## Attribution
+~~~text
+.
+├── retrieval/      # Retrieval implementation, policies, and finalizers
+├── rag/            # Agentic RAG implementation and runtime tooling
+├── evaluation/     # Output-format and deterministic validation utilities
+├── examples/       # Synthetic input/output format examples
+├── docs/           # Architecture and implementation notes
+├── report/         # Canonical technical report and LaTeX source
+├── ATTRIBUTION.md
+├── README.md
+├── REPRODUCIBILITY.md
+└── requirements-deepce.txt
+~~~
 
-This is team work with multiple contributors and third-party dependencies.
-See `ATTRIBUTION.md`. No contribution percentages are inferred.
+## Data & Reproducibility
 
-## License
+Competition datasets, official test topics, qrels, nuggets, and submission
+artifacts are not distributed here. The repository focuses on the system
+implementation, configuration, validation tooling, synthetic examples, and
+technical report. Deterministic transformations can be run with supplied
+inputs; end-to-end reproduction additionally depends on external retrieval
+indexes, sidecar services, model assets, and provider credentials. See
+[REPRODUCIBILITY.md](REPRODUCIBILITY.md) for interfaces and limitations.
 
-No project-wide license is provided in this archival repository pending
-confirmation of team and third-party licensing.
+## Setup
+
+~~~bash
+(cd retrieval && npm ci)
+(cd rag && npm ci)
+python3 evaluation/validators/test_apply_deep_cut.py
+~~~
+
+The optional Deep-CE utility uses the scoped dependencies in
+requirements-deepce.txt. Runtime service variables are documented in
+.env.example; values must be supplied through the environment.
